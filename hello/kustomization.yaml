@@ -4,5 +4,5 @@ namespace: demo
 resources:
   - namespace.yaml
   - deployment.yaml
-  - service-nodeport.yaml
-  # - ingress.yaml
+  - service.yaml
+  - ingress.yaml
