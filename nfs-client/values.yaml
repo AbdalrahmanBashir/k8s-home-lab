@@ -1,0 +1,7 @@
+nfs:
+  server: 192.168.12.237
+  path: /mnt/shared
+
+storageClass:
+  name: nfs-client
+  defaultClass: true
