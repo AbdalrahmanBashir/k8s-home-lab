@@ -57,28 +57,10 @@ repoServer:
         claimName: argocd-repo-tmp
 
 redis:
-  enabled: false
+  enabled: true
 
 redis-ha:
-  enabled: true
-  replicas: 1
-  haproxy:
-    replicas: 1
-  persistentVolume:
-    enabled: true
-    storageClass: nfs-client
-    size: 5Gi
-  resources:
-    requests:
-      cpu: "100m"
-      memory: "256Mi"
-    limits:
-      cpu: "500m"
-      memory: "512Mi"
-  exporter:
-    enabled: true
-    serviceMonitor:
-      enabled: true
+  enabled: false
 
 controller:
   replicas: 1
@@ -112,4 +94,4 @@ extraObjects:
       storageClassName: nfs-client
       resources:
         requests:
-          storage: 5Gi
+          storage: 10Gi
