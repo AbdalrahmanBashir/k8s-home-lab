@@ -1,0 +1,115 @@
+global:
+  domain: argocd.abdalrahman.tech
+
+configs:
+  cm:
+    url: https://argocd.abdalrahman.tech
+
+server:
+  extraArgs:
+    - --insecure
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    hosts:
+      - argocd.abdalrahman.tech
+    tls:
+      - hosts:
+          - argocd.abdalrahman.tech
+        secretName: argocd-tls
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+repoServer:
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+  volumeMounts:
+    - name: repo-tmp
+      mountPath: /tmp
+  volumes:
+    - name: repo-tmp
+      persistentVolumeClaim:
+        claimName: argocd-repo-tmp
+
+redis:
+  enabled: false
+
+redis-ha:
+  enabled: true
+  replicas: 1
+  haproxy:
+    replicas: 1
+  persistentVolume:
+    enabled: true
+    storageClass: nfs-client
+    size: 5Gi
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  exporter:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+applicationSet:
+  enabled: true
+
+dex:
+  enabled: false
+
+extraObjects:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: argocd-repo-tmp
+      namespace: argocd
+    spec:
+      accessModes:
+        - ReadWriteMany
+      storageClassName: nfs-client
+      resources:
+        requests:
+          storage: 5Gi
