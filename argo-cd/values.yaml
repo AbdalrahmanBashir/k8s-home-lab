@@ -4,6 +4,11 @@ global:
 configs:
   cm:
     url: https://argocd.abdalrahman.tech
+    resource.exclusions: |
+      - apiGroups:
+        - ""
+        kinds:
+        - Event
 
 server:
   extraArgs:
@@ -36,6 +41,9 @@ server:
       enabled: true
 
 repoServer:
+  env:
+    - name: TMPDIR
+      value: /argo-tmp
   resources:
     requests:
       cpu: "200m"
@@ -50,7 +58,7 @@ repoServer:
 
   volumeMounts:
     - name: repo-tmp
-      mountPath: /tmp
+      mountPath: /argo-tmp
   volumes:
     - name: repo-tmp
       persistentVolumeClaim:
