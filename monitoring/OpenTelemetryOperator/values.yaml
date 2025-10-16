@@ -1,0 +1,6 @@
+admissionWebhooks:
+  certManager:
+    enabled: true
+    issuerRef:
+      kind: Issuer
+      name: otel-operator-selfsigned
