@@ -1,4 +1,11 @@
 # k8s-home-lab
+Below are the hardware specifications and roles for each node in the cluster.
+
+| Hostname | Role | IP Address | OS / Kernel | Specs (CPU/RAM) | Version |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **k8s-master** | Control Plane | `192.168.12.237` | Ubuntu 24.04.3 LTS | 4 CPU <br> 16 GB RAM | v1.33.5 |
+| **k8s-worker-01** | Worker Node | `192.168.12.231` | Ubuntu 24.04.3 LTS | 4 CPU <br> 16 GB RAM | v1.33.5 |
+
 
 A Kubernetes home lab project, built from the ground up.
 
