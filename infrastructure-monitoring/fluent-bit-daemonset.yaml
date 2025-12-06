@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluent-bit
+  namespace: logging
+spec:
+  selector:
+    matchLabels:
+      app: fluent-bit
+  template:
+    metadata:
+      labels:
+        app: fluent-bit
+    spec:
+      serviceAccountName: fluent-bit
+      # Important for ensuring logs are collected from all nodes (including master nodes)
+      tolerations:
+        - operator: "Exists"
+      containers:
+        - name: fluent-bit
+          image: cr.fluentbit.io/fluent/fluent-bit
+          # Fluent Bit starts using the main config file
+          args: ["-c", "/fluent-bit/etc/fluent-bit.conf"]
+          env:
+            # Retrieves Elasticsearch password from the 'elastic-auth' secret
+            - name: ELASTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-auth
+                  key: ELASTIC_PASSWORD
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 512Mi
+          volumeMounts:
+            # Mounts the host's log directory
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            # Mounts the ConfigMap containing all config files
+            - name: config
+              mountPath: /fluent-bit/etc/
+            # Mounts the directory for state persistence (DB)
+            - name: state
+              mountPath: /fluent-bit/state
+      volumes:
+        - name: varlog
+          hostPath:
+            path: /var/log
+            type: Directory
+        - name: config
+          configMap:
+            name: fluent-bit-config # References the modular ConfigMap
+        - name: state
+          emptyDir: {}

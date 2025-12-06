@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: logging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      initContainers:
+        - name: kibana-set-kbn-password
+          image: curlimages/curl:8.10.1
+          env:
+            - name: ES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-auth
+                  key: ELASTIC_PASSWORD
+            - name: KBN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-auth
+                  key: KIBANA_SYSTEM_PASSWORD
+            - name: ES_HOST
+              value: "http://elasticsearch.logging.svc.cluster.local:9200"
+          command: ["/bin/sh", "-lc"]
+          args:
+            - |
+              set -eu
+              echo "Waiting for Elasticsearch at ${ES_HOST}..."
+              for i in $(seq 1 300); do
+                code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 "${ES_HOST}")
+                if [ "$code" = "200" ] || [ "$code" = "401" ]; then
+                  break
+                fi
+                sleep 2
+              done
+              echo "Setting kibana_system password..."
+              response=$(curl -sS -u "elastic:${ES_PASSWORD}" \
+                   -H 'Content-Type: application/json' \
+                   -X POST "${ES_HOST}/_security/user/kibana_system/_password" \
+                   -d "{\"password\":\"${KBN_PASSWORD}\"}")
+              if echo "$response" | grep -q "{\"password\":{\"value\":\"SET\"}}"; then
+                  echo "kibana_system password set."
+              else
+                  echo "FAILED to set kibana_system password. Response:"
+                  echo "$response"
+                  exit 1
+              fi
+      containers:
+        - name: kb
+          image: docker.elastic.co/kibana/kibana:8.14.3
+          ports:
+            - containerPort: 5601
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: '["http://elasticsearch.logging.svc.cluster.local:9200"]'
+            - name: ELASTICSEARCH_USERNAME
+              value: "kibana_system"
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-auth
+                  key: KIBANA_SYSTEM_PASSWORD
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 500m
+              memory: 1Gi

@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: logging
+data:
+  # ----------------------------------------------------
+  # 1. Main Configuration File: fluent-bit.conf
+  # ----------------------------------------------------
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush                1
+        Daemon               Off
+        Parsers_File         parsers.conf
+        Log_Level            info
+        # Use the @INCLUDE directive to load modular configuration files
+
+    @INCLUDE input-k8s-logs.conf
+    @INCLUDE filter-k8s-metadata.conf
+    @INCLUDE output-elasticsearch.conf
+
+  # ----------------------------------------------------
+  # 2. Input Configuration: Reads container logs
+  # ----------------------------------------------------
+  input-k8s-logs.conf: |
+    [INPUT]
+        Name                 tail
+        Path                 /var/log/containers/*.log
+        Parser               cri
+        Tag                  kube.*
+        Mem_Buf_Limit        50MB
+        Skip_Long_Lines      On
+        Refresh_Interval     10
+        Read_from_Head       On
+        Ignore_Older         24h
+        DB                   /fluent-bit/state/flb.db
+        DB.Sync              Normal
+        inotify_watcher      false
+
+  # ----------------------------------------------------
+  # 3. Filter Configuration: Enriches logs with K8s metadata
+  # ----------------------------------------------------
+  filter-k8s-metadata.conf: |
+    [FILTER]
+        Name                 kubernetes
+        Match                kube.*
+        Kube_Tag_Prefix      kube.var.log.containers.
+        Kube_URL             https://kubernetes.default.svc:443
+        Merge_Log            On
+        Keep_Log             Off
+        K8S-Logging.Parser   On
+        K8S-Logging.Exclude  Off
+        Kube_Meta_Cache_TTL  300s
+
+  # ----------------------------------------------------
+  # 4. Output Configuration: Sends logs to Elasticsearch
+  # ----------------------------------------------------
+  output-elasticsearch.conf: |
+    [OUTPUT]
+        Name                 es
+        Match                kube.*
+        Host                 elasticsearch.logging.svc.cluster.local
+        Port                 9200
+        Suppress_Type_Name   On
+        # Write daily indices with this prefix => kubernetes-logs-YYYY.MM.DD
+        Logstash_Format      On
+        Logstash_Prefix      kubernetes-logs
+        Logstash_DateFormat  %Y.%m.%d
+
+        # Auth to Elasticsearch Password retrieved from DaemonSet environment variable
+        HTTP_User            elastic
+        HTTP_Passwd          ${ELASTIC_PASSWORD}
+
+        Replace_Dots         On
+        Retry_Limit          False
+
+  # ----------------------------------------------------
+  # 5. Parsers File: Defines the CRI log format parser
+  # ----------------------------------------------------
+  parsers.conf: |
+    [PARSER]
+        Name    cri
+        Format  regex
+        Regex   ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<message>.*)$
+        Time_Key      time
+        Time_Format   %Y-%m-%dT%H:%M:%S.%L%z
+        Time_Keep     On
